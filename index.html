@@ -84,7 +84,7 @@
           </label>
           <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
             <input type="checkbox" id="visEventTitle" checked class="mr-1">
-            Event Title Y <input id="offEventTitle" type="number" min="0" max="800" value="148" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeEventTitle" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white" title="Font size"/>
+            Event Title Y <input id="offEventTitle" type="number" min="0" max="800" value="150" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeEventTitle" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white" title="Font size"/>
           </label>
           <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
             <input type="checkbox" id="visDate" checked class="mr-1">
@@ -280,6 +280,48 @@
       return name.replace(/\s+/g, ' ').trim();
     }
     
+    // Sanitize and truncate for filenames
+    function sanitizeFilename(text, maxLength = 40) {
+      if (!text) return 'document';
+      
+      // Remove special characters, keep only alphanumeric, spaces, hyphens
+      let clean = text.replace(/[^a-z0-9\s-]/gi, '');
+      
+      // Replace multiple spaces with single underscore
+      clean = clean.replace(/\s+/g, '_');
+      
+      // Remove leading/trailing underscores
+      clean = clean.replace(/^_+|_+$/g, '');
+      
+      // Truncate to max length
+      if (clean.length > maxLength) {
+        clean = clean.substring(0, maxLength);
+      }
+      
+      return clean || 'document';
+    }
+    
+    // Wrap long text into multiple lines for PDF
+    function addWrappedText(doc, text, x, y, maxWidth, fontSize, align = 'center') {
+      doc.setFontSize(fontSize);
+      const lines = doc.splitTextToSize(text, maxWidth);
+      
+      // Calculate starting Y position for centered multi-line text
+      let currentY = y;
+      if (align === 'center' && lines.length > 1) {
+        // Adjust Y to center the block of text
+        const lineHeight = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
+        const totalHeight = lines.length * lineHeight;
+        currentY = y - (totalHeight / 2) + (lineHeight / 2);
+      }
+      
+      // Draw each line
+      lines.forEach((line, index) => {
+        const lineY = currentY + (index * fontSize * 0.3527);
+        doc.text(line, x, lineY, { align: align });
+      });
+    }
+    
     function renderStaff(names) {
       const list = getElement('#staffList');
       list.innerHTML = '';
@@ -453,40 +495,38 @@
         }
         
         // Add text to PDF (all in caps, no field labels)
+        // maxWidth set to 165mm (leaving 22.5mm margins on each side of 210mm A4 width)
+        const maxWidth = 165;
+        
         if (staffName && getElement('#visStaff').checked) {
-          doc.setFontSize(sizeStaff);
-          doc.text(staffName.toUpperCase(), 105, offStaff, { align: 'center' });
+          addWrappedText(doc, staffName.toUpperCase(), 105, offStaff, maxWidth, sizeStaff, 'center');
         }
         
         if (eventTitle && getElement('#visEventTitle').checked) {
-          doc.setFontSize(sizeEventTitle);
-          doc.text(eventTitle.toUpperCase(), 105, offEventTitle, { align: 'center' });
+          addWrappedText(doc, eventTitle.toUpperCase(), 105, offEventTitle, maxWidth, sizeEventTitle, 'center');
         }
         
         if (dateRange && getElement('#visDate').checked) {
-          doc.setFontSize(sizeDate);
-          doc.text(dateRange.toUpperCase(), 105, offDate, { align: 'center' });
+          addWrappedText(doc, dateRange.toUpperCase(), 105, offDate, maxWidth, sizeDate, 'center');
         }
         
         if (location && getElement('#visLocation').checked) {
-          doc.setFontSize(sizeLocation);
-          doc.text(location.toUpperCase(), 105, offLocation, { align: 'center' });
+          addWrappedText(doc, location.toUpperCase(), 105, offLocation, maxWidth, sizeLocation, 'center');
         }
         
         if (organizer && getElement('#visOrganizer').checked) {
-          doc.setFontSize(sizeOrganizer);
-          doc.text(organizer.toUpperCase(), 105, offOrganizer, { align: 'center' });
+          addWrappedText(doc, organizer.toUpperCase(), 105, offOrganizer, maxWidth, sizeOrganizer, 'center');
         }
         
         if (getElement('#visSerial').checked) {
           const serialFormatted = String(serial).padStart(3, '0');
           const fullSerial = `${serialMain}${serialFormatted}`;
-          doc.setFontSize(sizeSerial);
-          doc.text(fullSerial.toUpperCase(), 105, offSerial, { align: 'center' });
+          addWrappedText(doc, fullSerial.toUpperCase(), 105, offSerial, maxWidth, sizeSerial, 'center');
         }
 
-        const titlePart = eventTitle ? eventTitle.replace(/[^a-z0-9]/gi, '_') : 'document';
-        const staffPart = staffName.replace(/[^a-z0-9]/gi, '_');
+        // Use sanitized filenames with length limits
+        const titlePart = sanitizeFilename(eventTitle, 30);
+        const staffPart = sanitizeFilename(staffName, 30);
         const filename = `${titlePart}-${staffPart}.pdf`;
         
         if (zipAll) {
@@ -500,7 +540,7 @@
       if (zipAll) {
         getElement('#status').textContent = 'Creating ZIP file...';
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const titlePart = eventTitle ? eventTitle.replace(/[^a-z0-9]/gi, '_') : 'documents';
+        const titlePart = sanitizeFilename(eventTitle, 40);
         const datePart = fromDate ? fromDate : 'export';
         const zipFilename = `${titlePart}-${datePart}.zip`;
         saveAs(zipBlob, zipFilename);
