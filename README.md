@@ -2,7 +2,7 @@
 
 A web-based application for generating bulk PDF certificates with customizable fields, background images, and automatic staff list loading. Built for organizations that need to create multiple certificates efficiently.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-Apache%202-blue)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)
 
@@ -21,6 +21,8 @@ A web-based application for generating bulk PDF certificates with customizable f
 ## Demo
 
 ![Screenshot](screenshot.png)
+
+![Screenshot](screenshot-cert.png)
 
 ## Installation
 
