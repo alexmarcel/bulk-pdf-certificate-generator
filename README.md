@@ -246,15 +246,6 @@ If you encounter any issues or have questions:
 - Check existing issues for solutions
 - Review the Troubleshooting section above
 
-## Roadmap
-
-- [ ] Add PDF preview before generation
-- [ ] Support for multiple background templates
-- [ ] Custom font selection
-- [ ] QR code generation on certificates
-- [ ] Multi-language support
-- [ ] Export configuration as JSON
-
 ---
 
 Made with ❤️ for efficient certificate generation
