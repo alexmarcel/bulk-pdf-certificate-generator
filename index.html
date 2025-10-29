@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bulk PDF Certificate Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <style>
+    html, body { font-family: Inter, ui-sans-serif, system-ui; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-dvh transition-colors">
+  <main class="max-w-5xl mx-auto p-6">
+    <h1 class="text-2xl font-semibold dark:text-white mb-4">Bulk PDF Certificate Generator</h1>
+    <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow space-y-6 transition-colors">
+      
+      <div class="grid md:grid-cols-2 gap-4">
+        <label class="dark:text-gray-200">Event Title
+          <input id="eventTitle" type="text" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="Event Title" value="KURSUS" />
+        </label>
+        <label class="dark:text-gray-200">Organizer
+          <input id="organizer" type="text" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="Organizer" value="UNIT LATIHAN DALAM PERKHIDMATAN" />
+        </label>
+        <label class="dark:text-gray-200">Location
+          <input id="location" type="text" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="Location" value="ILKKM TAWAU (KEJURURAWATAN)" />
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="dark:text-gray-200">From
+            <input id="fromDate" type="date" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" />
+          </label>
+          <label class="dark:text-gray-200">To
+            <input id="toDate" type="date" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" />
+          </label>
+        </div>
+        <label class="dark:text-gray-200">Serial Main
+          <input id="serialMain" type="text" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="ILKKMT/(04)2025/" value="ILKKMT/(04)2025/" />
+        </label>
+        <label class="dark:text-gray-200">Starting Serial
+          <input id="startSerial" type="number" min="1" value="1" class="mt-1 w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" />
+        </label>
+      </div>
+      
+      <div class="border-t dark:border-gray-700 pt-4">
+        <h2 class="font-semibold mb-2 dark:text-white">Background Image (optional)</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Upload a background image for the certificate (JPG, PNG)</p>
+        <input id="backgroundImage" type="file" accept="image/jpeg,image/png,image/jpg" class="text-sm dark:text-gray-300" />
+        <div id="bgPreview" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
+      </div>
+
+      <div class="border-t dark:border-gray-700 pt-4">
+        <h2 class="font-semibold mb-2 dark:text-white">Staff List (optional)</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Upload a text file or type manually.</p>
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <input id="staffFile" type="file" accept=".txt,.csv" class="text-sm dark:text-gray-300" />
+          <button id="loadFromFile" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded transition-colors">Load File</button>
+          <span id="lastFile" class="text-xs text-gray-500 dark:text-gray-400"></span>
+          <label class="ml-auto text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+            <input id="selectAllDefault" type="checkbox" class="rounded border-gray-400">Select all after load
+          </label>
+        </div>
+        <textarea id="staffTextarea" rows="6" class="w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="Type staff names (one per line)"></textarea>
+        <div class="flex gap-2 mt-2">
+          <button id="applyTextarea" type="button" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors">Apply</button>
+          <button id="clearStaff" type="button" class="px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Clear</button>
+        </div>
+        <div id="staffList" class="max-h-56 overflow-auto border dark:border-gray-600 rounded mt-3 p-2 text-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-200"></div>
+        <div id="selectToolbar" class="flex flex-wrap items-center gap-2 mt-2">
+          <button id="selectAllBtn" type="button" class="px-3 py-1 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors">Select All</button>
+          <button id="selectNoneBtn" type="button" class="px-3 py-1 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors">Select None</button>
+          <button id="invertSelectBtn" type="button" class="px-3 py-1 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors">Invert</button>
+          <span id="selectCount" class="text-xs text-slate-500 dark:text-slate-400 ml-auto"></span>
+        </div>
+      </div>
+
+      <div class="border-t dark:border-gray-700 pt-4">
+        <h2 class="font-semibold mb-2 dark:text-white">Field Positions & Font Sizes</h2>
+        <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visStaff" checked class="mr-1">
+            Staff Y <input id="offStaff" type="number" min="0" max="800" value="120" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeStaff" type="number" min="8" max="40" value="18" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+          </label>
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visEventTitle" checked class="mr-1">
+            Event Title Y <input id="offEventTitle" type="number" min="0" max="800" value="148" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeEventTitle" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white" title="Font size"/>
+          </label>
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visDate" checked class="mr-1">
+            Date Y <input id="offDate" type="number" min="0" max="800" value="177" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeDate" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+          </label>
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visLocation" class="mr-1">
+            Location Y <input id="offLocation" type="number" min="0" max="800" value="250" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeLocation" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+          </label>
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visOrganizer" checked class="mr-1">
+            Organizer Y <input id="offOrganizer" type="number" min="0" max="800" value="200" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeOrganizer" type="number" min="8" max="40" value="14" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+          </label>
+          <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
+            <input type="checkbox" id="visSerial" checked class="mr-1">
+            Serial Y <input id="offSerial" type="number" min="0" max="800" value="275" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeSerial" type="number" min="8" max="40" value="8" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="generateBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors">Generate PDFs</button>
+        <label class="text-sm dark:text-gray-200"><input id="zipToggle" type="checkbox" checked> Zip all</label>
+        <span id="status" class="text-sm text-gray-500 dark:text-gray-400"></span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Query selectors
+    const getElement = selector => document.querySelector(selector);
+    const getAllElements = selector => Array.from(document.querySelectorAll(selector));
+    
+    // Set dark mode by default
+    document.documentElement.classList.add('dark');
+    
+    // Set default from date to today
+    const today = new Date().toISOString().split('T')[0];
+    getElement('#fromDate').value = today;
+    
+    // Background image data
+    let backgroundImageData = null;
+    
+    // Auto-load background image from server
+    async function loadBackgroundFromServer() {
+      try {
+        // Try common image extensions
+        const extensions = ['jpg', 'jpeg', 'png'];
+        for (const ext of extensions) {
+          try {
+            const response = await fetch(`background/certificate.${ext}`);
+            if (response.ok) {
+              const blob = await response.blob();
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                backgroundImageData = event.target.result;
+                getElement('#bgPreview').textContent = `Auto-loaded: certificate.${ext}`;
+              };
+              reader.readAsDataURL(blob);
+              return;
+            }
+          } catch (e) {
+            // Try next extension
+          }
+        }
+        // If no specific file found, try to list directory
+        const response = await fetch('background/');
+        if (response.ok) {
+          const text = await response.text();
+          // Try to find image file in directory listing
+          const match = text.match(/([\w-]+\.(jpg|jpeg|png))/i);
+          if (match) {
+            const filename = match[1];
+            const imgResponse = await fetch(`background/${filename}`);
+            if (imgResponse.ok) {
+              const blob = await imgResponse.blob();
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                backgroundImageData = event.target.result;
+                getElement('#bgPreview').textContent = `Auto-loaded: ${filename}`;
+              };
+              reader.readAsDataURL(blob);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('No background image found in /background folder');
+      }
+    }
+    
+    // Auto-load staff list from server
+    async function loadStaffListFromServer() {
+      try {
+        // Try common text file names
+        const filenames = ['staff.txt', 'stafflist.txt', 'list.txt'];
+        for (const filename of filenames) {
+          try {
+            const response = await fetch(`stafflist/${filename}`);
+            if (response.ok) {
+              const text = await response.text();
+              const names = parseNamesText(text);
+              getElement('#staffTextarea').value = names.join('\n');
+              renderStaff(names);
+              getElement('#status').textContent = `Auto-loaded ${names.length} staff from ${filename}`;
+              return;
+            }
+          } catch (e) {
+            // Try next filename
+          }
+        }
+        // If no specific file found, try to list directory
+        const response = await fetch('stafflist/');
+        if (response.ok) {
+          const text = await response.text();
+          // Try to find text file in directory listing
+          const match = text.match(/([\w-]+\.txt)/i);
+          if (match) {
+            const filename = match[1];
+            const txtResponse = await fetch(`stafflist/${filename}`);
+            if (txtResponse.ok) {
+              const txtContent = await txtResponse.text();
+              const names = parseNamesText(txtContent);
+              getElement('#staffTextarea').value = names.join('\n');
+              renderStaff(names);
+              getElement('#status').textContent = `Auto-loaded ${names.length} staff from ${filename}`;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('No staff list found in /stafflist folder');
+      }
+    }
+    
+    // Load files on page load
+    loadBackgroundFromServer();
+    loadStaffListFromServer();
+    
+    // Handle background image upload
+    getElement('#backgroundImage').addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) {
+        backgroundImageData = null;
+        getElement('#bgPreview').textContent = '';
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        backgroundImageData = event.target.result;
+        getElement('#bgPreview').textContent = `Background loaded: ${file.name}`;
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Utility functions
+    function sanitize(name) {
+      return name.replace(/\s+/g, ' ').trim();
+    }
+    
+    function renderStaff(names) {
+      const list = getElement('#staffList');
+      list.innerHTML = '';
+      names.forEach((name) => {
+        list.innerHTML += `<label class='flex items-center gap-2'><input type='checkbox' class='staffCheck' data-name='${name}'><span>${name}</span></label>`;
+      });
+      if (getElement('#selectAllDefault').checked) {
+        getAllElements('.staffCheck').forEach(checkbox => checkbox.checked = true);
+      }
+      updateSelectCount();
+    }
+
+    function parseNamesText(text) {
+      if (!text) return [];
+      text = text.replace(/\uFEFF/g, '').replace(/\r\n?/g, '\n');
+      let parts = text.split(/\n/);
+      if (parts.length === 1 && parts[0].includes(',')) {
+        parts = parts[0].split(',');
+      }
+      return [...new Set(parts.map(sanitize).filter(Boolean))];
+    }
+
+    function updateLastFileName(name) {
+      const el = getElement('#lastFile');
+      if (el) el.textContent = name ? `Last loaded: ${name}` : '';
+    }
+
+    function updateSelectCount() {
+      const boxes = getAllElements('.staffCheck');
+      const selected = boxes.filter(box => box.checked).length;
+      const label = getElement('#selectCount');
+      if (label) label.textContent = boxes.length ? `${selected}/${boxes.length} selected` : '';
+    }
+
+    // Apply button handler
+    getElement('#applyTextarea').addEventListener('click', () => {
+      const text = getElement('#staffTextarea').value.trim();
+      if (text) {
+        const names = parseNamesText(text);
+        renderStaff(names);
+        getElement('#status').textContent = `Applied ${names.length} staff names.`;
+      } else {
+        getElement('#staffList').innerHTML = '';
+        updateSelectCount();
+        getElement('#status').textContent = 'No staff names to apply.';
+      }
+    });
+
+    // Clear button handler
+    getElement('#clearStaff').addEventListener('click', () => {
+      getElement('#staffTextarea').value = '';
+      getElement('#staffList').innerHTML = '';
+      updateSelectCount();
+      getElement('#status').textContent = 'Cleared staff list.';
+    });
+
+    // Load from file button handler
+    getElement('#loadFromFile').addEventListener('click', async () => {
+      const input = getElement('#staffFile');
+      const file = input && input.files && input.files[0];
+      if (!file) {
+        getElement('#status').textContent = 'Select a .txt or .csv file first.';
+        return;
+      }
+      const text = await file.text();
+      const names = parseNamesText(text);
+      getElement('#staffTextarea').value = names.join('\n');
+      renderStaff(names);
+      updateLastFileName(file.name);
+      getElement('#status').textContent = `Loaded ${names.length} staff from file.`;
+    });
+
+    // Selection toolbar buttons
+    getElement('#selectAllBtn').addEventListener('click', () => {
+      getAllElements('.staffCheck').forEach(box => box.checked = true);
+      updateSelectCount();
+    });
+    
+    getElement('#selectNoneBtn').addEventListener('click', () => {
+      getAllElements('.staffCheck').forEach(box => box.checked = false);
+      updateSelectCount();
+    });
+    
+    getElement('#invertSelectBtn').addEventListener('click', () => {
+      getAllElements('.staffCheck').forEach(box => box.checked = !box.checked);
+      updateSelectCount();
+    });
+    
+    getElement('#staffList').addEventListener('change', event => {
+      if (event.target.classList.contains('staffCheck')) updateSelectCount();
+    });
+
+    // Generate PDFs handler
+    getElement('#generateBtn').addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const eventTitle = getElement('#eventTitle').value.trim();
+      const organizer = getElement('#organizer').value.trim();
+      const location = getElement('#location').value.trim();
+      const fromDate = getElement('#fromDate').value;
+      const toDate = getElement('#toDate').value;
+      const serialMain = getElement('#serialMain').value.trim();
+      const startSerial = parseInt(getElement('#startSerial').value) || 1;
+      
+      const selectedStaff = getAllElements('.staffCheck:checked').map(checkbox => checkbox.dataset.name);
+      
+      if (selectedStaff.length === 0) {
+        getElement('#status').textContent = 'Please select at least one staff member.';
+        return;
+      }
+
+      const offEventTitle = parseInt(getElement('#offEventTitle').value);
+      const offStaff = parseInt(getElement('#offStaff').value);
+      const offDate = parseInt(getElement('#offDate').value);
+      const offLocation = parseInt(getElement('#offLocation').value);
+      const offOrganizer = parseInt(getElement('#offOrganizer').value);
+      const offSerial = parseInt(getElement('#offSerial').value);
+      
+      const sizeEventTitle = parseInt(getElement('#sizeEventTitle').value);
+      const sizeStaff = parseInt(getElement('#sizeStaff').value);
+      const sizeDate = parseInt(getElement('#sizeDate').value);
+      const sizeLocation = parseInt(getElement('#sizeLocation').value);
+      const sizeOrganizer = parseInt(getElement('#sizeOrganizer').value);
+      const sizeSerial = parseInt(getElement('#sizeSerial').value);
+
+      // Format date range
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        const day = date.getDate();
+        const month = date.toLocaleString('en-US', { month: 'long' });
+        const year = date.getFullYear();
+        return { day, month, year, full: `${day} ${month} ${year}` };
+      }
+
+      let dateRange = '';
+      if (fromDate && toDate) {
+        const from = formatDate(fromDate);
+        const to = formatDate(toDate);
+        
+        if (from.month === to.month && from.year === to.year) {
+          dateRange = `${from.day} - ${to.day} ${from.month} ${from.year}`;
+        } else {
+          dateRange = `${from.full} - ${to.full}`;
+        }
+      } else if (fromDate) {
+        dateRange = formatDate(fromDate).full;
+      } else if (toDate) {
+        dateRange = formatDate(toDate).full;
+      }
+
+      getElement('#status').textContent = 'Generating PDFs...';
+
+      const zipAll = getElement('#zipToggle').checked;
+      const zip = zipAll ? new JSZip() : null;
+
+      for (let i = 0; i < selectedStaff.length; i++) {
+        const staffName = selectedStaff[i];
+        const serial = startSerial + i;
+        
+        const doc = new jsPDF();
+        
+        // Add background image if provided
+        if (backgroundImageData) {
+          const imgWidth = 210;
+          const imgHeight = 297;
+          doc.addImage(backgroundImageData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        }
+        
+        // Add text to PDF (all in caps, no field labels)
+        if (staffName && getElement('#visStaff').checked) {
+          doc.setFontSize(sizeStaff);
+          doc.text(staffName.toUpperCase(), 105, offStaff, { align: 'center' });
+        }
+        
+        if (eventTitle && getElement('#visEventTitle').checked) {
+          doc.setFontSize(sizeEventTitle);
+          doc.text(eventTitle.toUpperCase(), 105, offEventTitle, { align: 'center' });
+        }
+        
+        if (dateRange && getElement('#visDate').checked) {
+          doc.setFontSize(sizeDate);
+          doc.text(dateRange.toUpperCase(), 105, offDate, { align: 'center' });
+        }
+        
+        if (location && getElement('#visLocation').checked) {
+          doc.setFontSize(sizeLocation);
+          doc.text(location.toUpperCase(), 105, offLocation, { align: 'center' });
+        }
+        
+        if (organizer && getElement('#visOrganizer').checked) {
+          doc.setFontSize(sizeOrganizer);
+          doc.text(organizer.toUpperCase(), 105, offOrganizer, { align: 'center' });
+        }
+        
+        if (getElement('#visSerial').checked) {
+          const serialFormatted = String(serial).padStart(3, '0');
+          const fullSerial = `${serialMain}${serialFormatted}`;
+          doc.setFontSize(sizeSerial);
+          doc.text(fullSerial.toUpperCase(), 105, offSerial, { align: 'center' });
+        }
+
+        const titlePart = eventTitle ? eventTitle.replace(/[^a-z0-9]/gi, '_') : 'document';
+        const staffPart = staffName.replace(/[^a-z0-9]/gi, '_');
+        const filename = `${titlePart}-${staffPart}.pdf`;
+        
+        if (zipAll) {
+          const pdfBlob = doc.output('blob');
+          zip.file(filename, pdfBlob);
+        } else {
+          doc.save(filename);
+        }
+      }
+
+      if (zipAll) {
+        getElement('#status').textContent = 'Creating ZIP file...';
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const titlePart = eventTitle ? eventTitle.replace(/[^a-z0-9]/gi, '_') : 'documents';
+        const datePart = fromDate ? fromDate : 'export';
+        const zipFilename = `${titlePart}-${datePart}.zip`;
+        saveAs(zipBlob, zipFilename);
+        getElement('#status').textContent = `Generated ${selectedStaff.length} PDFs in ZIP file.`;
+      } else {
+        getElement('#status').textContent = `Generated ${selectedStaff.length} PDFs.`;
+      }
+    });
+  </script>
+</body>
+</html>
