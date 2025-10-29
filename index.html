@@ -58,7 +58,7 @@
           <button id="loadFromFile" class="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded transition-colors">Load File</button>
           <span id="lastFile" class="text-xs text-gray-500 dark:text-gray-400"></span>
           <label class="ml-auto text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-            <input id="selectAllDefault" type="checkbox" class="rounded border-gray-400">Select all after load
+            <input id="selectAllDefault" type="checkbox" checked class="rounded border-gray-400">Select all after load
           </label>
         </div>
         <textarea id="staffTextarea" rows="6" class="w-full border dark:border-gray-600 rounded p-2 dark:bg-gray-700 dark:text-white" placeholder="Type staff names (one per line)"></textarea>
@@ -131,7 +131,17 @@
     // Auto-load background image from server
     async function loadBackgroundFromServer() {
       try {
-        // Try common image extensions
+        // Check if running in Electron
+        if (window.electronAPI) {
+          const result = await window.electronAPI.readBackgroundImage();
+          if (result.success) {
+            backgroundImageData = result.data;
+            getElement('#bgPreview').textContent = `Auto-loaded: ${result.filename}`;
+          }
+          return;
+        }
+        
+        // Web-based loading
         const extensions = ['jpg', 'jpeg', 'png'];
         for (const ext of extensions) {
           try {
@@ -143,6 +153,10 @@
                 backgroundImageData = event.target.result;
                 getElement('#bgPreview').textContent = `Auto-loaded: certificate.${ext}`;
               };
+              reader.onerror = function() {
+                console.error('Error reading background image file');
+                getElement('#bgPreview').textContent = 'Error loading background';
+              };
               reader.readAsDataURL(blob);
               return;
             }
@@ -150,11 +164,11 @@
             // Try next extension
           }
         }
-        // If no specific file found, try to list directory
+        
+        // Try to list directory
         const response = await fetch('background/');
         if (response.ok) {
           const text = await response.text();
-          // Try to find image file in directory listing
           const match = text.match(/([\w-]+\.(jpg|jpeg|png))/i);
           if (match) {
             const filename = match[1];
@@ -165,6 +179,10 @@
               reader.onload = function(event) {
                 backgroundImageData = event.target.result;
                 getElement('#bgPreview').textContent = `Auto-loaded: ${filename}`;
+              };
+              reader.onerror = function() {
+                console.error('Error reading background image file');
+                getElement('#bgPreview').textContent = 'Error loading background';
               };
               reader.readAsDataURL(blob);
             }
@@ -178,7 +196,19 @@
     // Auto-load staff list from server
     async function loadStaffListFromServer() {
       try {
-        // Try common text file names
+        // Check if running in Electron
+        if (window.electronAPI) {
+          const result = await window.electronAPI.readStaffList();
+          if (result.success) {
+            const names = parseNamesText(result.data);
+            getElement('#staffTextarea').value = names.join('\n');
+            renderStaff(names);
+            getElement('#status').textContent = `Auto-loaded ${names.length} staff from ${result.filename}`;
+          }
+          return;
+        }
+        
+        // Web-based loading
         const filenames = ['staff.txt', 'stafflist.txt', 'list.txt'];
         for (const filename of filenames) {
           try {
@@ -195,11 +225,11 @@
             // Try next filename
           }
         }
-        // If no specific file found, try to list directory
+        
+        // Try to list directory
         const response = await fetch('stafflist/');
         if (response.ok) {
           const text = await response.text();
-          // Try to find text file in directory listing
           const match = text.match(/([\w-]+\.txt)/i);
           if (match) {
             const filename = match[1];
@@ -219,8 +249,10 @@
     }
     
     // Load files on page load
-    loadBackgroundFromServer();
-    loadStaffListFromServer();
+    window.addEventListener('DOMContentLoaded', () => {
+      loadBackgroundFromServer();
+      loadStaffListFromServer();
+    });
     
     // Handle background image upload
     getElement('#backgroundImage').addEventListener('change', async (e) => {
@@ -235,6 +267,10 @@
       reader.onload = function(event) {
         backgroundImageData = event.target.result;
         getElement('#bgPreview').textContent = `Background loaded: ${file.name}`;
+      };
+      reader.onerror = function() {
+        console.error('Error reading uploaded background file');
+        getElement('#bgPreview').textContent = 'Error loading file';
       };
       reader.readAsDataURL(file);
     });
@@ -402,13 +438,18 @@
         const staffName = selectedStaff[i];
         const serial = startSerial + i;
         
+        // Update progress
+        getElement('#status').textContent = `Generating PDFs... (${i + 1}/${selectedStaff.length})`;
+        
         const doc = new jsPDF();
         
         // Add background image if provided
         if (backgroundImageData) {
           const imgWidth = 210;
           const imgHeight = 297;
-          doc.addImage(backgroundImageData, 'JPEG', 0, 0, imgWidth, imgHeight);
+          // Detect image format
+          const imgFormat = backgroundImageData.includes('data:image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(backgroundImageData, imgFormat, 0, 0, imgWidth, imgHeight);
         }
         
         // Add text to PDF (all in caps, no field labels)
