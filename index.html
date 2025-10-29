@@ -80,7 +80,7 @@
         <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
           <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
             <input type="checkbox" id="visStaff" checked class="mr-1">
-            Staff Y <input id="offStaff" type="number" min="0" max="800" value="120" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeStaff" type="number" min="8" max="40" value="18" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
+            Staff Name Y <input id="offStaff" type="number" min="0" max="800" value="120" class="w-24 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"> <input id="sizeStaff" type="number" min="8" max="40" value="18" class="w-20 border dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white"/>
           </label>
           <label class="text-sm flex items-center justify-between gap-2 dark:text-gray-200">
             <input type="checkbox" id="visEventTitle" checked class="mr-1">
@@ -450,8 +450,16 @@
       function formatDate(dateStr) {
         const date = new Date(dateStr);
         const day = date.getDate();
-        const month = date.toLocaleString('en-US', { month: 'long' });
+        const monthIndex = date.getMonth();
         const year = date.getFullYear();
+        
+        // Bahasa Malaysia month names
+        const monthsBM = [
+          'Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun',
+          'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'
+        ];
+        
+        const month = monthsBM[monthIndex];
         return { day, month, year, full: `${day} ${month} ${year}` };
       }
 
